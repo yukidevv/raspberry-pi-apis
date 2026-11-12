@@ -8,15 +8,17 @@ yt-dlp を使う。設計上の制限として、受け付けるのは YouTube �
 
 ## 構成（venv）
 
-サーバ本体に venv は不要（標準ライブラリのみ）。venv は yt-dlp の隔離と
-更新のために使う。Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの
-pip install が制限されているため、この形が無難。
+可搬性を重視し、実行環境は venv に閉じる。サーバの実行も yt-dlp も
+venv 側でまかない、ホストの Python は venv を作る初回だけ使う。
+サーバ本体は標準ライブラリのみで、追加パッケージは yt-dlp だけ。
+Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
+制限されている点でも、この形が無難。
 
 ```
 ~/subtitle-api/
 ├── subtitle_api.py
 ├── cookies.txt        （必要な場合のみ）
-└── .venv/             （yt-dlp 専用）
+└── .venv/             （実行用の Python と yt-dlp）
 ```
 
 ## Pi でのセットアップ
@@ -31,14 +33,15 @@ pip install が制限されているため、この形が無難。
    ```
 
    yt-dlp の更新は `.venv/bin/pip install -U yt-dlp` を再実行するだけ。
-3. トークンと yt-dlp のパスを指定して起動する:
+3. venv の Python でサーバを起動する:
 
    ```
    SUBTITLE_API_TOKEN=<長いランダム文字列> \
-   YTDLP_BIN=$HOME/subtitle-api/.venv/bin/yt-dlp \
-   python3 subtitle_api.py
+   .venv/bin/python subtitle_api.py
    ```
 
+   yt-dlp は、起動した Python と同じ venv 内のものが自動で使われる
+   （別の場所の yt-dlp を使いたい場合だけ `YTDLP_BIN` で明示する）。
    ポートは既定 8787（`SUBTITLE_API_PORT` で変更可）。
 4. 字幕のダウンロードが bot チェックで失敗する場合は、ログイン済みの
    YouTube セッションから cookies.txt をエクスポートして、スクリプトと

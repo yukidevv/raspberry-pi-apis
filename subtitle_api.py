@@ -34,7 +34,13 @@ TOKEN = os.environ.get("SUBTITLE_API_TOKEN", "")
 PORT = int(os.environ.get("SUBTITLE_API_PORT", "8787"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 COOKIES = os.path.join(HERE, "cookies.txt")
-YTDLP = os.environ.get("YTDLP_BIN", "yt-dlp")
+def _default_ytdlp() -> str:
+    # venv の Python で起動された場合は、同じ venv 内の yt-dlp を使う。
+    candidate = os.path.join(os.path.dirname(sys.executable), "yt-dlp")
+    return candidate if os.path.exists(candidate) else "yt-dlp"
+
+
+YTDLP = os.environ.get("YTDLP_BIN") or _default_ytdlp()
 TIMEOUT = 120
 
 YOUTUBE_HOSTS = {
