@@ -141,7 +141,7 @@ class Handler(BaseHTTPRequestHandler):
         video_id = extract_video_id(raw_url)
         if not video_id:
             return self._json(400, {"error": "url must be a YouTube video URL"})
-        langs = (qs.get("langs") or ["ja,en.*"])[0]
+        langs = (qs.get("langs") or ["en,ja"])[0]
         try:
             result = fetch_subtitles(video_id, langs)
         except subprocess.TimeoutExpired:
