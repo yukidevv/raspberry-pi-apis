@@ -31,6 +31,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 TOKEN = os.environ.get("SUBTITLE_API_TOKEN", "")
+HOST = os.environ.get("SUBTITLE_API_HOST", "0.0.0.0")
 PORT = int(os.environ.get("SUBTITLE_API_PORT", "8787"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 COOKIES = os.path.join(HERE, "cookies.txt")
@@ -157,4 +158,4 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     if not TOKEN:
         sys.exit("起動前に SUBTITLE_API_TOKEN を設定してください（未設定では起動しません）。")
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

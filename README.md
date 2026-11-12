@@ -43,6 +43,8 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
    yt-dlp は、起動した Python と同じ venv 内のものが自動で使われる
    （別の場所の yt-dlp を使いたい場合だけ `YTDLP_BIN` で明示する）。
    ポートは既定 8787（`SUBTITLE_API_PORT` で変更可）。
+   リバースプロキシの後ろで動かす場合は `SUBTITLE_API_HOST=127.0.0.1`
+   を指定し、待ち受けをローカルホストだけにする。
 4. 字幕のダウンロードが bot チェックで失敗する場合は、ログイン済みの
    YouTube セッションから cookies.txt をエクスポートして、スクリプトと
    同じフォルダに置く。自動で使われる。
