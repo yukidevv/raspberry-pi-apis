@@ -17,6 +17,7 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 ```
 ~/subtitle-api/
 ├── subtitle_api.py
+├── .env               （トークン等の設定。chmod 600、repo には入れない）
 ├── cookies.txt        （必要な場合のみ）
 └── .venv/             （実行用の Python と yt-dlp）
 ```
@@ -33,10 +34,19 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
    ```
 
    yt-dlp の更新は `.venv/bin/pip install -U yt-dlp` を再実行するだけ。
-3. venv の Python でサーバを起動する:
+3. 設定を `.env` に書く（スクリプトと同じフォルダに置くと起動時に
+   自動で読まれる。権限は 600 にする）:
 
    ```
-   SUBTITLE_API_TOKEN=<長いランダム文字列> \
+   # .env の中身
+   SUBTITLE_API_TOKEN=<長いランダム文字列>
+   SUBTITLE_API_HOST=127.0.0.1
+   ```
+
+   環境変数で直接渡してもよく、その場合は環境変数が優先される。
+4. venv の Python でサーバを起動する:
+
+   ```
    .venv/bin/python subtitle_api.py
    ```
 
@@ -45,7 +55,7 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
    ポートは既定 8787（`SUBTITLE_API_PORT` で変更可）。
    リバースプロキシの後ろで動かす場合は `SUBTITLE_API_HOST=127.0.0.1`
    を指定し、待ち受けをローカルホストだけにする。
-4. 字幕のダウンロードが bot チェックで失敗する場合は、ログイン済みの
+5. 字幕のダウンロードが bot チェックで失敗する場合は、ログイン済みの
    YouTube セッションから cookies.txt をエクスポートして、スクリプトと
    同じフォルダに置く。自動で使われる。
 

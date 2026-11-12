@@ -9,6 +9,9 @@ YouTube の URL を受け取り、yt-dlp で字幕を取得して、整形した
 使い方:
     SUBTITLE_API_TOKEN=<secret> python3 subtitle_api.py [--port 8787]
 
+    設定は環境変数のほか、スクリプトと同じフォルダの .env ファイルからも
+    読める（KEY=VALUE 形式）。両方ある場合は環境変数が優先される。
+
     curl -H "X-Api-Token: <secret>" \
          "http://localhost:8787/subtitles?url=https://youtu.be/VIDEOID"
 
@@ -29,6 +32,27 @@ import sys
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
+
+def _load_dotenv() -> None:
+    # スクリプトと同じフォルダの .env があれば読み込む。
+    # 既に設定されている環境変数は上書きしない（そちらが優先）。
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key, value = key.strip(), value.strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+                    value = value[1:-1]
+                os.environ.setdefault(key, value)
+    except FileNotFoundError:
+        pass
+
+
+_load_dotenv()
 
 TOKEN = os.environ.get("SUBTITLE_API_TOKEN", "")
 HOST = os.environ.get("SUBTITLE_API_HOST", "0.0.0.0")
