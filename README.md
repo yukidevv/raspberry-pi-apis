@@ -1,34 +1,63 @@
-# YouTube subtitle API — Pi setup notes
+# YouTube 字幕 API — Raspberry Pi セットアップ手順
 
-Draft prepared 2026-11-12. Server: `subtitle_api.py` (Python 3 stdlib only,
-plus `yt-dlp` on the Pi). Single-purpose by design: it accepts only YouTube
-video URLs, fetches subtitles with yt-dlp, returns cleaned text as JSON.
-No filesystem browsing, no other endpoints.
+自宅の Raspberry Pi で動かす単一目的の字幕 API。サーバ本体は
+`subtitle_api.py`（Python 3 標準ライブラリのみ）で、字幕の取得には
+yt-dlp を使う。設計上の制限として、受け付けるのは YouTube の動画 URL
+だけにし、字幕テキストを整形して JSON で返す。それ以外のエンドポイント
+やファイル参照は持たない。
 
-## On the Pi
+## 構成（venv）
 
-1. Copy `subtitle_api.py` to the Pi (e.g. `~/subtitle-api/`).
-2. Make sure `yt-dlp` is available (`yt-dlp --version`).
-3. Start it with a token:
-   `SUBTITLE_API_TOKEN=<long-random-string> python3 subtitle_api.py`
-   (port 8787 by default; `SUBTITLE_API_PORT` to change)
-4. If subtitle downloads fail with bot-check errors, export `cookies.txt`
-   from a logged-in YouTube session and place it next to the script —
-   it is picked up automatically.
+サーバ本体に venv は不要（標準ライブラリのみ）。venv は yt-dlp の隔離と
+更新のために使う。Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの
+pip install が制限されているため、この形が無難。
 
-## Still to decide: how Muse reaches it
+```
+~/subtitle-api/
+├── subtitle_api.py
+├── cookies.txt        （必要な場合のみ）
+└── .venv/             （yt-dlp 専用）
+```
 
-- **Cloudflare Tunnel** — no Tailscale join needed; Pi dials out, Muse
-  calls the tunnel URL + token.
-- **Tailscale** — private, but the VM's tailnet join approval is still
-  outstanding from the earlier attempt.
+## Pi でのセットアップ
 
-Either way the server itself does not change; only the exposure route does.
+1. `subtitle_api.py` を Pi の `~/subtitle-api/` に置く。
+2. venv を作って yt-dlp を入れる:
 
-## Verified in the VM (2026-11-12)
+   ```
+   cd ~/subtitle-api
+   python3 -m venv .venv
+   .venv/bin/pip install -U yt-dlp
+   ```
+
+   yt-dlp の更新は `.venv/bin/pip install -U yt-dlp` を再実行するだけ。
+3. トークンと yt-dlp のパスを指定して起動する:
+
+   ```
+   SUBTITLE_API_TOKEN=<長いランダム文字列> \
+   YTDLP_BIN=$HOME/subtitle-api/.venv/bin/yt-dlp \
+   python3 subtitle_api.py
+   ```
+
+   ポートは既定 8787（`SUBTITLE_API_PORT` で変更可）。
+4. 字幕のダウンロードが bot チェックで失敗する場合は、ログイン済みの
+   YouTube セッションから cookies.txt をエクスポートして、スクリプトと
+   同じフォルダに置く。自動で使われる。
+
+## 公開ルート（未決定）
+
+Muse からこの API に届く経路は2案あり、どちらにするかは未決定。
+サーバ自体はどちらの場合も同じ。
+
+- **Cloudflare Tunnel** — Tailscale 参加は不要。Pi から外向きに接続し、
+  Muse はトンネルの URL＋トークンで呼ぶ。
+- **Tailscale** — プライベートだが、VM の tailnet 参加の承認が前回の
+  試行から未完了のまま。
+
+## VM での検証結果（2026-11-12）
 
 - `GET /health` → 200 `{"ok": true}`
-- No/wrong token → 401
-- Token + non-YouTube URL → 400
-- Actual subtitle fetching is untested from the VM (YouTube returns 429
-  there — that is the whole reason this runs on the Pi's home connection).
+- トークンなし・誤ったトークン → 401
+- トークン＋YouTube 以外の URL → 400
+- 実際の字幕取得は VM からは未検証（YouTube が 429 を返すためで、
+  それこそが Pi の自宅回線で動かす理由）

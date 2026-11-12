@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-"""Single-purpose YouTube subtitle API for the home Raspberry Pi.
+"""自宅 Raspberry Pi 用の単一目的 YouTube 字幕 API。
 
-Accepts a YouTube URL, fetches subtitles with yt-dlp, and returns cleaned
-plain text. Nothing else: no file access, no arbitrary commands, no other
-hosts. Token authentication via the X-Api-Token header (or ?token=).
+YouTube の URL を受け取り、yt-dlp で字幕を取得して、整形したプレーン
+テキストを返す。それ以外のことはしない: ファイルアクセスなし、任意の
+コマンド実行なし、他のホストへの接続なし。認証は X-Api-Token ヘッダ
+（または ?token=）によるトークン認証。
 
-Usage:
+使い方:
     SUBTITLE_API_TOKEN=<secret> python3 subtitle_api.py [--port 8787]
 
     curl -H "X-Api-Token: <secret>" \
          "http://localhost:8787/subtitles?url=https://youtu.be/VIDEOID"
 
-Optional: place a cookies.txt (exported from a logged-in YouTube session)
-next to this file if subtitle downloads start failing with bot checks;
-it is passed to yt-dlp automatically when present.
+任意: 字幕のダウンロードが bot チェックで失敗する場合は、ログイン済み
+YouTube セッションからエクスポートした cookies.txt をこのファイルと
+同じフォルダに置くこと。あれば自動で yt-dlp に渡される。
 
-Response JSON:
+レスポンス JSON:
     {"video_id": "...", "lang": "ja", "title": "...", "text": "..."}
-Errors are JSON with an "error" field and a 4xx/5xx status.
+エラー時は {"error": ...} と 4xx/5xx ステータスを返す。
 """
 
 import json
@@ -62,7 +63,7 @@ def extract_video_id(url: str) -> str | None:
 
 
 def clean_vtt(raw: str) -> str:
-    """Strip VTT headers, timestamps, tags and duplicate rolling lines."""
+    """VTT のヘッダ、タイムスタンプ、タグ、重複するロール行を取り除く。"""
     lines, seen = [], set()
     for line in raw.splitlines():
         line = line.strip()
@@ -93,8 +94,8 @@ def fetch_subtitles(video_id: str, langs: str) -> dict:
         if not files:
             detail = (proc.stderr or proc.stdout or "").strip()[-500:]
             raise RuntimeError(f"no subtitles found: {detail}")
-        # Prefer a manual track over auto-generated when yt-dlp saved both:
-        # file names are <id>.<lang>.vtt; just take the first requested lang.
+        # 手動字幕と自動字幕の両方が保存された場合は手動字幕を優先する。
+        # ファイル名は <id>.<lang>.vtt 形式。要求された言語の最初の一致を使う。
         chosen = files[0]
         for want in langs.split(","):
             match = [f for f in files if f".{want}." in f]
@@ -108,7 +109,7 @@ def fetch_subtitles(video_id: str, langs: str) -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, fmt, *args):  # keep stdout quiet except errors
+    def log_message(self, fmt, *args):  # エラー以外は標準出力を静かに保つ
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
     def _json(self, code: int, payload: dict):
@@ -149,5 +150,5 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     if not TOKEN:
-        sys.exit("Set SUBTITLE_API_TOKEN before starting (refusing to run open).")
+        sys.exit("起動前に SUBTITLE_API_TOKEN を設定してください（未設定では起動しません）。")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
