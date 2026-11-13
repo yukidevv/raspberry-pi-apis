@@ -1,10 +1,13 @@
-# YouTube 字幕 API — Raspberry Pi セットアップ手順
+# Raspberry Pi APIs — セットアップ手順
 
-自宅の Raspberry Pi で動かす単一目的の字幕 API。サーバ本体は
-`subtitle_api.py`（Python 3 標準ライブラリのみ）で、字幕の取得には
-yt-dlp を使う。設計上の制限として、受け付けるのは YouTube の動画 URL
-だけにし、字幕テキストを整形して JSON で返す。それ以外のエンドポイント
-やファイル参照は持たない。
+自宅の Raspberry Pi で動かす、Muse 専用の小規模 API サーバ。サーバ
+本体は Python 3 標準ライブラリのみで、入口の `subtitle_api.py` と
+config / subtitles / fx の各モジュールからなる。字幕の取得には
+yt-dlp を使う。単一目的のエンドポイントを同じポートに同居させる
+構成で、各エンドポイントは自分の仕事しかしない。字幕取得は YouTube の
+動画 URL だけを受け付け、字幕テキストを整形して JSON で返す。FxEmbed
+中継は読み取り専用で、中継先は固定したパスの形状だけに限る。ファイル
+参照のエンドポイントは持たない。
 
 ## 構成（venv）
 
@@ -16,7 +19,10 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 
 ```
 ~/subtitle-api/
-├── subtitle_api.py
+├── subtitle_api.py    （入口: 起動とルーティング）
+├── config.py          （.env 読み込みと共通設定）
+├── subtitles.py       （字幕取得）
+├── fx.py              （FxEmbed 中継）
 ├── .env               （トークン等の設定。chmod 600、repo には入れない）
 ├── cookies.txt        （必要な場合のみ）
 └── .venv/             （実行用の Python と yt-dlp）
@@ -24,7 +30,8 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 
 ## Pi でのセットアップ
 
-1. `subtitle_api.py` を Pi の `~/subtitle-api/` に置く。
+1. 4つの `.py` ファイルを Pi の `~/subtitle-api/` に置く
+   （モジュール同士が import するため、同じフォルダに揃える）。
 2. venv を作って yt-dlp を入れる:
 
    ```
@@ -40,6 +47,7 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
    ```
    # .env の中身
    SUBTITLE_API_TOKEN=<長いランダム文字列>
+   FX_API_TOKEN=<長いランダム文字列>   # 任意。/x 中継を使う場合のみ
    SUBTITLE_API_HOST=127.0.0.1
    ```
 
@@ -58,6 +66,21 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 5. 字幕のダウンロードが bot チェックで失敗する場合は、ログイン済みの
    YouTube セッションから cookies.txt をエクスポートして、スクリプトと
    同じフォルダに置く。自動で使われる。
+
+## エンドポイント
+
+認証は `X-Api-Token` ヘッダ（または `?token=`）。トークンはエンド
+ポイント群ごとに別で、字幕用は `SUBTITLE_API_TOKEN`、中継用は
+`FX_API_TOKEN` と照合する。
+
+- `GET /health` — 認証なし。`{"ok": true}` を返す。
+- `GET /subtitles?url=<YouTube URL>&langs=<言語コード>` — 字幕取得。
+- `GET /x/status/<ツイートID>` — FxEmbed の単一ポスト取得を中継。
+- `GET /x/profile/<ハンドル>/statuses` — FxEmbed のアカウント
+  タイムライン取得を中継。
+- `GET /x/search?q=<検索語>` — FxEmbed のキーワード検索を中継。
+  `FX_API_TOKEN` 未設定の場合、`/x/...` は 503 で無効になる
+  （字幕側には影響しない）。
 
 ## 公開ルート（未決定）
 
