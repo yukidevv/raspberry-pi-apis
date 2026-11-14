@@ -32,7 +32,5 @@ _load_dotenv()
 HOST = os.environ.get("SUBTITLE_API_HOST", "0.0.0.0")
 PORT = int(os.environ.get("SUBTITLE_API_PORT", "8787"))
 
-# 認証トークン（エンドポイント群ごとに別々に照合する）。
-# FX_TOKEN が未設定なら FxEmbed 中継は無効になる。
-SUBTITLE_TOKEN = os.environ.get("SUBTITLE_API_TOKEN", "")
-FX_TOKEN = os.environ.get("FX_API_TOKEN", "")
+# アプリレベルの認証トークンは持たない。到達制御は Tailscale の
+# 参加端末の制限と、玄関の Apache の Require で行う前提。

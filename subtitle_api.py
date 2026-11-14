@@ -6,18 +6,17 @@
 
 - /subtitles: YouTube 字幕の取得（subtitles モジュール）。
 - /x/...: FxEmbed（api.fxtwitter.com）への読み取り専用の中継
-  （fx モジュール）。FX_API_TOKEN 未設定なら無効（503 を返す）。
+  （fx モジュール）。
 
 このファイルは起動とルーティングだけを担い、設定は config
-モジュールが .env と環境変数から読む。認証はエンドポイント群ごとに
-別々のトークンで、X-Api-Token ヘッダ（または ?token=）で照合する。
+モジュールが .env と環境変数から読む。アプリレベルの認証は持たず、
+到達制御は Tailscale と玄関の Apache 側で行う前提。
 ファイルアクセスなし、任意のコマンド実行なし。
 
 使い方:
-    SUBTITLE_API_TOKEN=<secret> python3 subtitle_api.py
+    python3 subtitle_api.py
 
-    curl -H "X-Api-Token: <secret>" \
-         "http://localhost:8787/subtitles?url=https://youtu.be/VIDEOID"
+    curl "http://localhost:8787/subtitles?url=https://youtu.be/VIDEOID"
 
 レスポンス JSON:
     {"video_id": "...", "lang": "ja", "text": "..."}
@@ -54,15 +53,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _token(self, qs: dict) -> str:
-        return self.headers.get("X-Api-Token") or (qs.get("token") or [""])[0]
-
     def _fx(self, u, qs: dict):
         """FxEmbed への読み取り専用中継。中継先は固定の3形状だけ。"""
-        if not config.FX_TOKEN:
-            return self._json(503, {"error": "fx relay is not configured"})
-        if self._token(qs) != config.FX_TOKEN:
-            return self._json(401, {"error": "unauthorized"})
         try:
             upstream = fx.map_path(u.path, (qs.get("q") or [""])[0])
         except fx.RelayError as exc:
@@ -76,8 +68,6 @@ class Handler(BaseHTTPRequestHandler):
         return self._raw(status, body)
 
     def _subtitles(self, qs: dict):
-        if not config.SUBTITLE_TOKEN or self._token(qs) != config.SUBTITLE_TOKEN:
-            return self._json(401, {"error": "unauthorized"})
         raw_url = (qs.get("url") or [""])[0]
         video_id = subtitles.extract_video_id(raw_url)
         if not video_id:
@@ -108,6 +98,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    if not config.SUBTITLE_TOKEN:
-        sys.exit("起動前に SUBTITLE_API_TOKEN を設定してください（未設定では起動しません）。")
     ThreadingHTTPServer((config.HOST, config.PORT), Handler).serve_forever()

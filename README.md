@@ -23,7 +23,7 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 ├── config.py          （.env 読み込みと共通設定）
 ├── subtitles.py       （字幕取得）
 ├── fx.py              （FxEmbed 中継）
-├── .env               （トークン等の設定。chmod 600、repo には入れない）
+├── .env               （任意の設定。repo には入れない）
 ├── cookies.txt        （必要な場合のみ）
 └── .venv/             （実行用の Python と yt-dlp）
 ```
@@ -41,13 +41,12 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
    ```
 
    yt-dlp の更新は `.venv/bin/pip install -U yt-dlp` を再実行するだけ。
-3. 設定を `.env` に書く（スクリプトと同じフォルダに置くと起動時に
-   自動で読まれる。権限は 600 にする）:
+3. 設定が必要な場合は `.env` に書く（スクリプトと同じフォルダに
+   置くと起動時に自動で読まれる）。待ち受けホストやポートを変える
+   場合のみで、必須の設定はない:
 
    ```
-   # .env の中身
-   SUBTITLE_API_TOKEN=<長いランダム文字列>
-   FX_API_TOKEN=<長いランダム文字列>   # 任意。/x 中継を使う場合のみ
+   # .env の中身（例）
    SUBTITLE_API_HOST=127.0.0.1
    ```
 
@@ -69,28 +68,22 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 
 ## エンドポイント
 
-認証は `X-Api-Token` ヘッダ（または `?token=`）。トークンはエンド
-ポイント群ごとに別で、字幕用は `SUBTITLE_API_TOKEN`、中継用は
-`FX_API_TOKEN` と照合する。
+アプリレベルの認証はない。到達制御は Tailscale（参加できる端末の
+制限）と、玄関の Apache の `Require` で行う前提の設計。
 
-- `GET /health` — 認証なし。`{"ok": true}` を返す。
+- `GET /health` — `{"ok": true}` を返す。
 - `GET /subtitles?url=<YouTube URL>&langs=<言語コード>` — 字幕取得。
 - `GET /x/status/<ツイートID>` — FxEmbed の単一ポスト取得を中継。
 - `GET /x/profile/<ハンドル>/statuses` — FxEmbed のアカウント
   タイムライン取得を中継。
 - `GET /x/search?q=<検索語>` — FxEmbed のキーワード検索を中継。
-  `FX_API_TOKEN` 未設定の場合、`/x/...` は 503 で無効になる
-  （字幕側には影響しない）。
 
-## 公開ルート（未決定）
+## 接続ルート
 
-Muse からこの API に届く経路は2案あり、どちらにするかは未決定。
-サーバ自体はどちらの場合も同じ。
-
-- **Cloudflare Tunnel** — Tailscale 参加は不要。Pi から外向きに接続し、
-  Muse はトンネルの URL＋トークンで呼ぶ。
-- **Tailscale** — プライベートだが、VM の tailnet 参加の承認が前回の
-  試行から未完了のまま。
+Muse からこの API への経路は Tailscale に決まった（2026-11-14
+運用開始）。Pi の Apache を玄関として `/api/` 配下をこのサーバへ
+プロキシし、到達できるのは tailnet 参加端末からのみ。公開側の
+`/api/` は閉じている。
 
 ## VM での検証結果（2026-11-12）
 
