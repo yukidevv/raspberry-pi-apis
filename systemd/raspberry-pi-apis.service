@@ -1,0 +1,16 @@
+[Unit]
+Description=Raspberry Pi APIs (YouTube subtitles + FxEmbed relay)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=yuki
+WorkingDirectory=/srv/app/youtube-subtitle-api
+ExecStart=/srv/app/youtube-subtitle-api/.venv/bin/python /srv/app/youtube-subtitle-api/subtitle_api.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

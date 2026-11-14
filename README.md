@@ -18,11 +18,12 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 制限されている点でも、この形が無難。
 
 ```
-~/subtitle-api/
+/srv/app/youtube-subtitle-api/
 ├── subtitle_api.py    （入口: 起動とルーティング）
 ├── config.py          （.env 読み込みと共通設定）
 ├── subtitles.py       （字幕取得）
 ├── fx.py              （FxEmbed 中継）
+├── systemd/           （常駐化用の unit）
 ├── .env               （任意の設定。repo には入れない）
 ├── cookies.txt        （必要な場合のみ）
 └── .venv/             （実行用の Python と yt-dlp）
@@ -30,12 +31,13 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 
 ## Pi でのセットアップ
 
-1. 4つの `.py` ファイルを Pi の `~/subtitle-api/` に置く
+1. 4つの `.py` ファイルと `systemd/` を Pi の
+   `/srv/app/youtube-subtitle-api/` に置く
    （モジュール同士が import するため、同じフォルダに揃える）。
 2. venv を作って yt-dlp を入れる:
 
    ```
-   cd ~/subtitle-api
+   cd /srv/app/youtube-subtitle-api
    python3 -m venv .venv
    .venv/bin/pip install -U yt-dlp
    ```
@@ -47,7 +49,7 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
 
    ```
    # .env の中身（例）
-   SUBTITLE_API_HOST=127.0.0.1
+   SUBTITLE_API_PORT=8787
    ```
 
    環境変数で直接渡してもよく、その場合は環境変数が優先される。
@@ -60,11 +62,42 @@ Raspberry Pi OS（Debian 系）は PEP 668 でシステムへの pip install が
    yt-dlp は、起動した Python と同じ venv 内のものが自動で使われる
    （別の場所の yt-dlp を使いたい場合だけ `YTDLP_BIN` で明示する）。
    ポートは既定 8787（`SUBTITLE_API_PORT` で変更可）。
-   リバースプロキシの後ろで動かす場合は `SUBTITLE_API_HOST=127.0.0.1`
-   を指定し、待ち受けをローカルホストだけにする。
+   Apache からは host.docker.internal 経由で届くため、待ち受けは
+   既定（0.0.0.0）のままにする。127.0.0.1 に絞るとコンテナから
+   届かなくなる。
 5. 字幕のダウンロードが bot チェックで失敗する場合は、ログイン済みの
    YouTube セッションから cookies.txt をエクスポートして、スクリプトと
    同じフォルダに置く。自動で使われる。
+
+## 常駐化（systemd）
+
+手動起動の代わりに、systemd のシステムサービスとして常駐させる。
+Pi の再起動後に自動で上がり、異常終了時は自動で再起動する。
+unit ファイルは repo の `systemd/` に置き、配置先ではコピーせず
+`systemctl link` でリンクして使う（unit の内容を変えたら
+`daemon-reload` が必要）。設定はアプリと同じフォルダの `.env` から
+アプリ自身が読むため、unit 側に値は持たない。
+
+1. 有効化して起動する:
+
+   ```
+   sudo systemctl link /srv/app/youtube-subtitle-api/systemd/raspberry-pi-apis.service
+   sudo systemctl enable --now raspberry-pi-apis
+   ```
+
+2. 確認する:
+
+   ```
+   systemctl status raspberry-pi-apis
+   curl http://127.0.0.1:8787/health
+   journalctl -u raspberry-pi-apis -f   # ログを見る場合
+   ```
+
+3. 停止・無効化する:
+
+   ```
+   sudo systemctl disable --now raspberry-pi-apis
+   ```
 
 ## エンドポイント
 
